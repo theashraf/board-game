@@ -119,21 +119,20 @@ const Board = ({ width, height }) => {
       {spritesNumber !== 0 ? (
         <table cellSpacing="0" style={{ border: "1px solid black" }}>
           <tbody>
-            {grid.map(row => (
-              <tr>
-                {row.map(col => (
-                  <>
-                    <td
-                      style={{
-                        overflow: "hidden",
-                        width: "50px",
-                        height: "50px",
-                        border: "1px solid black"
-                      }}
-                    >
-                      <Cell>{col}</Cell>
-                    </td>
-                  </>
+            {grid.map((row, i) => (
+              <tr key={i + "_" + Math.random()}>
+                {row.map((col, j) => (
+                  <td
+                    key={i + "_" + j + "_" + Math.random()}
+                    style={{
+                      overflow: "hidden",
+                      width: "50px",
+                      height: "50px",
+                      border: "1px solid black"
+                    }}
+                  >
+                    <Cell>{col}</Cell>
+                  </td>
                 ))}
               </tr>
             ))}

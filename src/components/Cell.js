@@ -1,4 +1,4 @@
-import React from "react";
+import React, { memo } from "react";
 import PropTypes from "prop-types";
 import player from "../assets/img/mario.jpg";
 import sprite from "../assets/img/sprite.jpg";
@@ -21,4 +21,4 @@ Cell.propTypes = {
   children: PropTypes.oneOf(["player", "sprite", ""]).isRequired
 };
 
-export default Cell;
+export default memo(Cell);

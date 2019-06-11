@@ -1,122 +1,128 @@
-import React, { useState } from "react";
+import React, { useReducer, useEffect } from "react";
 import PropTypes from "prop-types";
 import Cell from "./Cell";
 
-// Grid state
-const useGrid = (size, playerPosition, spritesNumber) => {
-  const [grid, setGrid] = useState(() => {
-    let initialGrid = [];
+// board state initializer
+const initialState = (width, height) => {
+  let grid = [];
+  const sprites = (width + height) / 2;
+  const playerPosition = {
+    row: Math.floor(width / 2),
+    col: Math.floor(height / 2)
+  };
 
-    // initialize grid
-    for (let r = 0; r < size.width; ++r) {
-      initialGrid[r] = [];
-      for (let c = 0; c < size.height; ++c) {
-        initialGrid[r][c] = "";
+  // initialize grid
+  for (let r = 0; r < width; ++r) {
+    grid[r] = [];
+    for (let c = 0; c < height; ++c) {
+      if (r === playerPosition.row && c === playerPosition.col) {
+        grid[r][c] = "player";
+        continue;
       }
+      grid[r][c] = "";
     }
+  }
 
-    // set initial player position in the grid
-    const [r, c] = playerPosition;
-    initialGrid[r][c] = "player";
-
-    // set sprites positions randomly in the grid
-    for (let n = 0; n < spritesNumber; ++n) {
-      let r = Math.floor(Math.random() * (size.width - 1));
-      let c = Math.floor(Math.random() * (size.height - 1));
-      // choose a new random row and col if the current row and col are occupied
-      while (initialGrid[r][c] !== "") {
-        r = Math.floor(Math.random() * (size.width - 1));
-        c = Math.floor(Math.random() * (size.height - 1));
-      }
-      initialGrid[r][c] = "sprite";
+  // set sprites positions randomly in the grid
+  for (let n = 0; n < sprites; ++n) {
+    let r = Math.floor(Math.random() * (width - 1));
+    let c = Math.floor(Math.random() * (height - 1));
+    // choose a new random row and col if the current row and col are occupied
+    while (grid[r][c] !== "") {
+      r = Math.floor(Math.random() * (width - 1));
+      c = Math.floor(Math.random() * (height - 1));
     }
+    grid[r][c] = "sprite";
+  }
 
-    return initialGrid;
-  });
-
-  return [grid, setGrid];
+  return {
+    grid,
+    sprites,
+    playerPosition,
+    moves: 0,
+    size: { width, height }
+  };
 };
 
-// player state
-const usePlayer = initialPosition => {
-  const [playerPosition, setPlayerPosition] = useState(initialPosition);
-  const [moves, setMoves] = useState(0);
+// board component reducer
+const boardReducer = (state, action) => {
+  let { grid, playerPosition, moves, sprites, size } = state;
 
-  return [
-    playerPosition,
-    args => {
-      setPlayerPosition(args);
-      setMoves(moves + 1);
-    },
-    moves
-  ];
+  // new player position
+  const newPlayerPosition = {
+    ...playerPosition
+  };
+
+  switch (action.type) {
+    case "MOVE_UP":
+      newPlayerPosition.row--;
+      if (newPlayerPosition.row < 0) return state;
+      break;
+    case "MOVE_DOWN":
+      newPlayerPosition.row++;
+      if (newPlayerPosition.row >= size.width) return state;
+      break;
+    case "MOVE_LEFT":
+      newPlayerPosition.col--;
+      if (newPlayerPosition.col < 0) return state;
+      break;
+    case "MOVE_RIGHT":
+      newPlayerPosition.col++;
+      if (newPlayerPosition.col >= size.height) return state;
+      break;
+    default:
+      return state;
+  }
+
+  // empty the player current position
+  grid[playerPosition.row][playerPosition.col] = "";
+
+  // if the new position has a sprite => decrease number of sprites
+  if (grid[newPlayerPosition.row][newPlayerPosition.col] === "sprite")
+    --sprites;
+
+  // set the new player position in the board
+  grid[newPlayerPosition.row][newPlayerPosition.col] = "player";
+  ++moves;
+
+  return {
+    ...state,
+    grid,
+    moves,
+    sprites,
+    playerPosition: newPlayerPosition
+  };
 };
 
 // Board component
 const Board = ({ width, height }) => {
-  // set player
-  const [playerPosition, setPlayerPosition, moves] = usePlayer([
-    Math.floor(width / 2), //row
-    Math.floor(height / 2) //col
-  ]);
-
-  // set sprites
-  const [spritesNumber, setSpritesNumber] = useState((width + height) / 2);
-
-  // set grid
-  const [grid, setGrid] = useGrid(
-    { width, height },
-    playerPosition,
-    spritesNumber
+  const [{ grid, sprites, moves }, dispatch] = useReducer(
+    boardReducer,
+    initialState(width, height)
   );
 
-  // move player to new position
-  const movePlayerTo = ([newRow, newCol]) => {
-    // skip movement if the new position row or col are greater than or equal the board width or height
-    if (newRow >= width || newCol >= height || newCol < 0 || newRow < 0) return;
-
-    // get current player position
-    const [currentRow, currentCol] = playerPosition;
-
-    // copy the newGrid for immutability
-    const newGrid = [...grid].map(row => [...row].map(col => col));
-
-    // empty the player current position
-    newGrid[currentRow][currentCol] = "";
-
-    // if the new position has a sprite => decrease number of sprites
-    if (newGrid[newRow][newCol] === "sprite")
-      setSpritesNumber(spritesNumber - 1);
-
-    // set the player position in the board grid
-    newGrid[newRow][newCol] = "player";
-
-    // set new player position
-    setPlayerPosition([newRow, newCol]);
-
-    setGrid(newGrid);
-  };
-
-  // arrow keys listeners
-  document.onkeydown = e => {
-    if (spritesNumber > 0) {
-      const [currentRow, currentCol] = playerPosition;
+  useEffect(() => {
+    window.addEventListener("keyup", e => {
       if (e.key === "ArrowUp") {
-        movePlayerTo([currentRow - 1, currentCol]);
+        dispatch({ type: "MOVE_UP" });
       } else if (e.key === "ArrowDown") {
-        movePlayerTo([currentRow + 1, currentCol]);
+        dispatch({ type: "MOVE_DOWN" });
       } else if (e.key === "ArrowRight") {
-        movePlayerTo([currentRow, currentCol + 1]);
+        dispatch({ type: "MOVE_RIGHT" });
       } else if (e.key === "ArrowLeft") {
-        movePlayerTo([currentRow, currentCol - 1]);
+        dispatch({ type: "MOVE_LEFT" });
       }
-    }
-  };
+    });
+    return () => {
+      window.removeEventListener("keyup");
+    };
+  }, []);
 
   return (
     <>
-      <p>moves: {moves}</p>
-      {spritesNumber !== 0 ? (
+      <p>player moves: {moves}</p>
+      <p>Sprites left: {sprites}</p>
+      {sprites !== 0 ? (
         <table cellSpacing="0" style={{ border: "1px solid black" }}>
           <tbody>
             {grid.map((row, i) => (
